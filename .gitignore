@@ -1,5 +1,15 @@
 .gradle
+.git
+.settings
+.classpath
+.stop___MAS
+.project
+
 /build/
+/bin
+/log
+
+e_r_r_o_r.txt
 
 # Ignore Gradle GUI config
 gradle-app.setting
