@@ -1,0 +1,79 @@
+<routes xmlns="http://camel.apache.org/schema/spring">
+
+  <route id="get_code">
+    <from uri="jetty://http://0.0.0.0:8888/token"/>
+    <log message="Received a request"/>
+    <setHeader headerName="Functor">
+      <constant>code</constant>
+    </setHeader>
+    <setBody>
+      <simple>${header.code}</simple>
+    </setBody>
+    <process ref="body2Literal"/>
+    <setBody><simple>${in.body}</simple></setBody>
+    <to uri='jacamo-artifact:oauth'/>
+  </route>
+
+  <route id="ask_code">
+    <from uri="jacamo-artifact:oauth?operation=get_code&amp;args=(Tenant,Client,ResType,ResMode,Scope,Uri)"/>
+    <process ref="formatProperties"/>
+    <setHeader headerName="CamelHttpMethod">
+      <constant>GET</constant>
+    </setHeader>
+    <setHeader headerName="CamelHttpUri">
+      <simple>https://login.microsoftonline.com/${exchangeProperty[Tenant]}/oauth2/v2.0/authorize?client_id=${exchangeProperty[Client]}&amp;response_type=${exchangeProperty[ResType]}&amp;response_mode=${exchangeProperty[ResMode]}&amp;scope=${exchangeProperty[Scope]}&amp;redirect_uri=${exchangeProperty[Uri]}</simple>
+    </setHeader>
+    <to uri="https://ask_code"/>
+  </route>
+
+  <route id="get_token">
+    <from uri="jacamo-artifact:oauth?operation=get_token&amp;args=(Tenant,Client,Secret,Code,Scope,Uri)"/>
+    <process ref="formatProperties"/>
+    <setHeader headerName="Content-Type">
+      <constant>application/x-www-form-urlencoded</constant>
+    </setHeader>
+    <setHeader headerName="CamelHttpMethod">
+      <constant>POST</constant>
+    </setHeader>
+    <setHeader headerName="CamelHttpUri">
+      <simple>https://login.microsoftonline.com/${exchangeProperty[Tenant]}/oauth2/v2.0/token</simple>
+    </setHeader>
+    <setBody>
+      <simple>client_id=${exchangeProperty[Client]}&amp;scope=${exchangeProperty[Scope]}&amp;grant_type=authorization_code&amp;client_secret=${exchangeProperty[Secret]}&amp;code=${exchangeProperty[Code]}&amp;redirect_uri=${exchangeProperty[Uri]}</simple>
+    </setBody>
+    <to uri="https://login"/>
+    <setHeader headerName="Functor">
+      <constant>token</constant>
+    </setHeader>
+    <setHeader headerName="Args">
+      <constant>token_type,access_token</constant>
+    </setHeader>
+    <process ref="body2Literal"/>
+    <setBody><simple>${in.body}</simple></setBody>
+    <to uri='jacamo-artifact:oauth'/>
+  </route>
+
+  <route id="send_msg">
+    <from uri="jacamo-artifact:oauth?operation=send_msg&amp;args=(Token,Teams,Channel,Msg)"/>
+    <process ref="formatProperties"/>
+    <process ref="setBody"/>
+    <setHeader headerName="CamelHttpMethod">
+        <constant>POST</constant>
+    </setHeader>
+    <setHeader headerName="Authorization">
+        <simple>${exchangeProperty[Token]}</simple>
+    </setHeader>
+    <setHeader headerName="CamelHttpUri">
+        <simple>https://graph.microsoft.com/beta/teams/${exchangeProperty[Teams]}/channels/${exchangeProperty[Channel]}/messages</simple>
+    </setHeader>
+    <setHeader headerName="Content-Type">
+        <constant>application/json</constant>
+    </setHeader>
+    <to uri="https://send_msg"/>
+    <setBody>
+      <simple>msg_status(${header.CamelHttpResponseCode})</simple>
+    </setBody>
+    <to uri='jacamo-artifact:oauth?isSignal=true'/>
+  </route>
+
+</routes>

@@ -1,0 +1,7 @@
+mas demo {
+
+	agent bob : bob.asl
+
+	/* platform: jacamoComponent.JacamoCamel() */
+	platform: jacamoComponent.JacamoCamel("routes.xml --applicationContext.xml")
+}
